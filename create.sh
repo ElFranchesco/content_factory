@@ -12,16 +12,10 @@ fi
 
 mkdir -p "$OUT_DIR"
 
-# Crear lista de imágenes (manejo de espacios en nombres)
-rm -f imagenes.txt
-for f in "$IMG_DIR"/*.{jpg,jpeg,png,webp}; do
-  [ -e "$f" ] || continue
-  echo "file '$f'" >> imagenes.txt
-done
-
-# Generar slideshow desde la lista
-ffmpeg -y -f concat -safe 0 -i imagenes.txt \
-       -vf "scale=1280:720,format=yuv420p,fps=1" \
+# Generar slideshow desde imágenes (manejo de espacios y duración)
+# Aquí usamos image2 en lugar de concat, para que las imágenes se muestren correctamente
+ffmpeg -y -pattern_type glob -i "$IMG_DIR/*.png" \
+       -vf "scale=1280:720,format=yuv420p,fps=1/5" \
        -c:v libx264 temp_video.mp4
 
 # Crear lista de audios (manejo de espacios en nombres)
@@ -41,6 +35,6 @@ ffmpeg -y -i temp_video.mp4 -i temp_audio.wav \
        -c:v copy -c:a aac "$OUTPUT_VIDEO"
 
 # Limpiar temporales
-rm -f temp_video.mp4 temp_audio.wav imagenes.txt audios.txt *.wav
+rm -f temp_video.mp4 temp_audio.wav audios.txt *.wav
 
 echo "✅ Video generado en $OUTPUT_VIDEO"
