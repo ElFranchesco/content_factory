@@ -2,7 +2,7 @@
 
 IMG_DIR="$HOME/input/imagenes"
 AUD_DIR="$HOME/input/audios"
-OUT_DIR="$HOME/final"
+OUT_DIR=${1:-"$HOME/output/final"}
 OUTPUT_VIDEO="$OUT_DIR/output_video.mp4"
 
 if [ ! -d "$IMG_DIR" ] || [ ! -d "$AUD_DIR" ]; then
@@ -22,14 +22,20 @@ ffmpeg -y -f concat -safe 0 -i imagenes.txt \
        -vf "scale=1280:720,format=yuv420p,fps=1" \
        -c:v libx264 temp_video.mp4
 
-# Concatenar audios en un solo archivo
-cat "$AUD_DIR"/*.mp3 > temp_audio.mp3
+# Re‑codificar cada audio a WAV uniforme (en carpeta de trabajo)
+rm -f audios.txt
+for f in "$AUD_DIR"/*.mp3; do
+  base=$(basename "$f" .mp3)
+  ffmpeg -y -i "$f" -ar 44100 -ac 2 -c:a pcm_s16le "${base}.wav"
+  echo "file '${base}.wav'" >> audios.txt
+done
 
-# Unir video + audio
-ffmpeg -y -i temp_video.mp4 -i temp_audio.mp3 \
+# Concatenar audios WAV en un solo archivo
+ffmpeg -y -f concat -safe 0 -i audios.txt -c:a pcm_s16le temp_audio.wav
+
+# Combinar video y audio en el archivo final
+ffmpeg -y -i temp_video.mp4 -i temp_audio.wav \
        -c:v copy -c:a aac "$OUTPUT_VIDEO"
 
-# Limpiar temporales
-rm temp_video.mp4 temp_audio.mp3 imagenes.txt
-
-echo "✅ Video generado en: $OUTPUT_VIDEO"
+# Limpiar temporales (solo si existen)
+rm -f temp_video.mp4 temp_audio.wav imagenes.txt audios.txt *.wav
