@@ -12,19 +12,22 @@ fi
 
 mkdir -p "$OUT_DIR"
 
-# Crear un archivo de lista con todas las imágenes
-ls "$IMG_DIR"/*.{jpg,jpeg,png,webp} 2>/dev/null | sort | while read f; do
-  echo "file '$f'"
-done > imagenes.txt
+# Crear lista de imágenes (manejo de espacios en nombres)
+rm -f imagenes.txt
+for f in "$IMG_DIR"/*.{jpg,jpeg,png,webp}; do
+  [ -e "$f" ] || continue
+  echo "file '$f'" >> imagenes.txt
+done
 
 # Generar slideshow desde la lista
 ffmpeg -y -f concat -safe 0 -i imagenes.txt \
        -vf "scale=1280:720,format=yuv420p,fps=1" \
        -c:v libx264 temp_video.mp4
 
-# Re‑codificar cada audio a WAV uniforme (en carpeta de trabajo)
+# Crear lista de audios (manejo de espacios en nombres)
 rm -f audios.txt
 for f in "$AUD_DIR"/*.mp3; do
+  [ -e "$f" ] || continue
   base=$(basename "$f" .mp3)
   ffmpeg -y -i "$f" -ar 44100 -ac 2 -c:a pcm_s16le "${base}.wav"
   echo "file '${base}.wav'" >> audios.txt
@@ -37,5 +40,7 @@ ffmpeg -y -f concat -safe 0 -i audios.txt -c:a pcm_s16le temp_audio.wav
 ffmpeg -y -i temp_video.mp4 -i temp_audio.wav \
        -c:v copy -c:a aac "$OUTPUT_VIDEO"
 
-# Limpiar temporales (solo si existen)
+# Limpiar temporales
 rm -f temp_video.mp4 temp_audio.wav imagenes.txt audios.txt *.wav
+
+echo "✅ Video generado en $OUTPUT_VIDEO"
